@@ -1,24 +1,34 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PathFinder : MonoBehaviour
 {
-    [SerializeField] private Waypoint startPoint, finishPoint;
-    Dictionary<Vector2Int, Waypoint> grid = new Dictionary<Vector2Int, Waypoint>();
+    public List<Waypoint> Path = new();
 
+    [SerializeField] private Waypoint _startPoint;
+    [SerializeField] private Waypoint _finishPoint;
+    private Waypoint _exploredPoint;
+    private bool _isFinishFound = false;
+
+    Dictionary<Vector2Int, Waypoint> grid = new();
+    Queue<Waypoint> queue = new();
     Vector2Int[] directions = {
         Vector2Int.up,
         Vector2Int.right,
         Vector2Int.down,
         Vector2Int.left
-    } ;
-    
-    void Start()
+    };
+
+    public List<Waypoint> GetPath()
     {
         LoadBlocks();
         SetStartFinishColor();
-        ExploreNearestPoins();
+        FindPath();
+        CreatePath();
+
+        return Path;
     }
 
     private void LoadBlocks()
@@ -35,26 +45,78 @@ public class PathFinder : MonoBehaviour
                 grid.Add(waypoint.GetGridPos(), waypoint);
             }
         }
-                
+
     }
 
     private void SetStartFinishColor()
     {
-        startPoint.SetTopColor(Color.green);
-        finishPoint.SetTopColor(Color.red);
+        _startPoint.SetTopColor(Color.green);
+        _finishPoint.SetTopColor(Color.red);
+    }
+
+    private void FindPath()
+    {
+        queue.Enqueue(_startPoint);
+        while (queue.Count > 0 && !_isFinishFound)
+        {
+            _exploredPoint = queue.Dequeue();
+            _exploredPoint.isExplored = true;
+            //CheckFinishPoint(_exploredPoint);
+            ExploreNearestPoins();
+        }
     }
 
     private void ExploreNearestPoins()
     {
-        foreach(Vector2Int direction in directions)
+        if (_isFinishFound) { return; }
+
+        foreach (Vector2Int direction in directions)
         {
-            Debug.Log(direction+startPoint.GetGridPos());
+            Vector2Int nearestPointCoordinates = direction + _exploredPoint.GetGridPos();
+            try
+            {
+                Waypoint nearestPoint = grid[nearestPointCoordinates];
+                if (!nearestPoint.isExplored && !queue.Contains(nearestPoint))
+                {
+                    //nearestPoint.SetTopColor(Color.blue);
+                    queue.Enqueue(nearestPoint);
+                    nearestPoint.previousPoint = _exploredPoint;
+
+                }
+                CheckFinishPoint(nearestPoint);
+            }
+            catch
+            {
+
+            }
+
+
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    private void CheckFinishPoint(Waypoint point)
     {
+        if (point == _finishPoint)
+        {
+            Debug.Log("Finish point was found:  " + point);
+            point.SetTopColor(Color.red);
+            _isFinishFound = true;
+        }
 
     }
+
+    private void CreatePath()
+    {
+        Path.Add(_finishPoint);
+        Waypoint pathPoint = _finishPoint.previousPoint;
+        while(pathPoint != _startPoint)
+        {
+            Path.Add(pathPoint);
+            pathPoint.SetTopColor(Color.black);
+            pathPoint = pathPoint.previousPoint;
+        }
+        Path.Add(_startPoint);
+        Path.Reverse();
+    }
+
 }
